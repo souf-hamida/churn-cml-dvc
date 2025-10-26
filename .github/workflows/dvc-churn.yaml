@@ -26,8 +26,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+          
+          # Configuration de DVC avec Google Drive Service Account
+          mkdir -p ~/.config/dvc
+          echo '${{ secrets.DVC_GDRIVE_CREDENTIALS_JSON }}' > ~/.config/dvc/gdrive-service-account.json
+          
+          # Configuration du remote DVC pour utiliser le service account
+          dvc remote modify --local myremote gdrive_service_account_json_file ~/.config/dvc/gdrive-service-account.json
+          dvc remote modify --local myremote gdrive_use_service_account true
+          
+          # Pull des données DVC
           dvc pull
+          
+          # Exécution du script ML
           python script.py
+          
+          # Ajout et push des résultats (si nécessaire)
           dvc add ./data/ ./models/
           dvc push
 
