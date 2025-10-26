@@ -52,7 +52,7 @@ jobs:
           dvc add data/ models/
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.dvc models.dvc dvc.lock
+          git add data.dvc models.dvc
           git commit -m "Update DVC artifacts [skip ci]" || echo "Nothing to commit"
 
       - name: Push data & models to DVC remote
