@@ -10,3 +10,4 @@ RandomForestClassifier-with-SMOTE
 F1-score of Training is: 88.12 %
 F1-Score of Validation is: 60.64 %
 ----------------------------------------
+test
