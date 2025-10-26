@@ -1,6 +1,5 @@
 [core]
-    remote = remote2
+    remote = myremote
 ['remote "myremote"']
-    url = gdrive://1yQsPkIg1liBBgpg7VdKYdn-ygO9vUrR8
-['remote "remote2"']
-    url = gdrive://1yQsPkIg1liBBgpg7VdKYdn-ygO9vUrR8
+    url = s3://my-bucket-dvc-soufiane/dvc-storage
+    region = eu-west-3

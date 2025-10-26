@@ -1,46 +1,70 @@
 name: churn-imbalanced-dataset
+
 on: [push]
-permissions: write-all
+
+permissions:
+  contents: write        # pour que CML puisse commenter / push des artefacts
+  pull-requests: write   # pour commenter dans les PR
+
 jobs:
   run:
     runs-on: ubuntu-latest
+
+    env:
+      # On injecte les secrets AWS pour que dvc ait accès au remote S3
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      # GitHub token pour CML (commentaire/report)
+      REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: "16"
-      - uses: actions/setup-python@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: iterative/setup-cml@v1
-        
+      - uses: iterative/setup-cml@v2
 
-      - name: Prepare Environment
-        env:
-            # Secret unique qui contient TOUT le JSON d'auth Google Drive
-            DVC_GDRIVE_CREDENTIALS_JSON: ${{ secrets.DVC_GDRIVE_CREDENTIALS_JSON }}
-            
+      - name: Install dependencies (Python, DVC, CML)
         run: |
-          # Your ML workflow goes here
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # si jamais cml n'est pas dans requirements.txt :
+          #pip install cml
 
+      - name: Pull data & models from DVC remote
+        run: |
           dvc pull
+
+      - name: Train / Evaluate model(s)
+        run: |
           python script.py
-          dvc add ./data/ ./models/
+          # exemple:
+          # python train_experiments.py
+
+      - name: Track new artifacts with DVC
+        run: |
+          dvc add data/ models/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.dvc models.dvc dvc.lock
+          git commit -m "Update DVC artifacts [skip ci]" || echo "Nothing to commit"
+
+      - name: Push data & models to DVC remote
+        run: |
           dvc push
 
-      - name: Generate Report
-        env:
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate and publish CML report
         run: |
-
-          # Get the report
           echo "## Metrics" > report.md
-          # cat metrics.txt >> report.md
-
           awk 'NR%4{print "    " $0}{print ""}' metrics.txt >> report.md
 
           echo "## Confusion Matrix" >> report.md
           echo "![](./conf_matrix.png)" >> report.md
+
+          # publier un commentaire CML sur le commit ou PR
           cml comment create report.md
