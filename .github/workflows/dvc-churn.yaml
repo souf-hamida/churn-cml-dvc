@@ -6,53 +6,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          fetch-depth: 0
-      
+          node-version: "16"
       - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-      
-      - uses: iterative/setup-cml@v2
-      
-      - name: Install dependencies
+      - uses: iterative/setup-cml@v1
+        
+
+      - name: Prepare Environment
+        env:
+            # Secret unique qui contient TOUT le JSON d'auth Google Drive
+            DVC_GDRIVE_CREDENTIALS_JSON: ${{ secrets.DVC_GDRIVE_CREDENTIALS_JSON }}
+            
         run: |
+          # Your ML workflow goes here
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Configure DVC with Service Account
-        env:
-          DVC_GDRIVE_CREDENTIALS_JSON: ${{ secrets.DVC_GDRIVE_CREDENTIALS_JSON }}
-        run: |
-          # Créer le fichier de credentials
-          mkdir -p ~/.config/dvc
-          echo '${{ secrets.DVC_GDRIVE_CREDENTIALS_JSON }}' > ~/.config/dvc/gdrive-credentials.json
-          
-          # Configurer DVC pour utiliser le service account
-          dvc remote modify myremote gdrive_use_service_account true
-          dvc remote modify myremote gdrive_service_account_json_file ~/.config/dvc/gdrive-credentials.json
-          
-          # Vérifier la configuration
-          echo "=== DVC Configuration ==="
-          cat .dvc/config
-          echo "=== Remote Configuration ==="
-          dvc remote modify myremote --list
-
-      - name: Pull data and run training
-        run: |
           dvc pull
           python script.py
+          dvc add ./data/ ./models/
+          dvc push
 
       - name: Generate Report
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+
+          # Get the report
           echo "## Metrics" > report.md
-          if [ -f "metrics.txt" ]; then
-            awk 'NR%4{print "    " $0}{print ""}' metrics.txt >> report.md
-          fi
+          # cat metrics.txt >> report.md
+
+          awk 'NR%4{print "    " $0}{print ""}' metrics.txt >> report.md
+
           echo "## Confusion Matrix" >> report.md
-          if [ -f "conf_matrix.png" ]; then
-            echo "![](./conf_matrix.png)" >> report.md
-          fi
+          echo "![](./conf_matrix.png)" >> report.md
           cml comment create report.md
